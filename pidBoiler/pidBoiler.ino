@@ -34,24 +34,104 @@ int graphHeightOld;
 int DelayVal = 500;
 int timeNow;
 int teplotaCAvg;
-float tempCorrection = 1.5;
-int tMax = 35;
+float tempCorrection = 1.0;
+int tMax = 125;
+String sensorVal;
+
 
 //Define Variables we'll be connecting to
 float Setpoint, Input, Output;
 
 //Specify the links and initial tuning parameters
-float Kp = 10, Ki = 50, Kd = 30;
-float POn = 1.0;   // proportional on Error to Measurement ratio (0.0-1.0), default = 1.0
+float Kp = 10.5, Ki = 0.67, Kd = 200.49;
+float POn = 0.5;   // proportional on Error to Measurement ratio (0.0-1.0), default = 1.0
 float DOn = 0.0;   // derivative on Error to Measurement ratio (0.0-1.0), default = 0.0
 
 QuickPID myQuickPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, POn, DOn, QuickPID::DIRECT);
 //QuickPID _myPID = QuickPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, POn, DOn, QuickPID::DIRECT);
 
-unsigned int WindowSize = 1000;
-unsigned int minWindow = 250;
-unsigned long windowStartTime;
 
+
+
+unsigned int WindowSize = 1000;
+unsigned int minWindow = 500;
+unsigned long windowStartTime;
+int timer = 0;
+int timeOld = 0;
+int timeNew = 0;
+float teplotaC = 0;
+
+
+
+void updateDisplay(){
+  int graphHeight = map(teplotaC, 0, tMax, TFTscreen.height(), 60);
+//  Serial.print("graphHeight:");    Serial.print(graphHeight);    Serial.println(",");
+  TFTscreen.stroke(255, 255, 255);
+  
+  TFTscreen.line(xPosOld, graphHeightOld, xPos,graphHeight);
+  xPosOld = xPos;
+  graphHeightOld = graphHeight;
+  if (xPos >= 128) {
+
+    xPos = 0;
+    xPosOld =0;
+
+    TFTscreen.background(0, 0, 0);
+    TFTscreen.setTextColor(0xFFFF);
+    // nastavení kurzoru na pozici [x, y] = [40, 25]
+    TFTscreen.setCursor(40, 25);
+    TFTscreen.setTextSize(1);
+    // tištění textu
+    TFTscreen.print("Mereni teploty");
+  }
+
+  else {
+
+    xPos++;
+    
+  }
+}
+
+float TCouple(){
+  timer += abs(timeOld - timeNew);
+  // Run low-frequency updates
+  delay(100);
+  if (timer > 200) {
+    teplotaC = termoclanek.readCelsius() - tempCorrection;
+    updateDisplay();
+    timer = 0;
+  }
+  return teplotaC;
+}
+void readCLI(){
+  if(Serial.available()) // if there is data comming
+  {
+    String command = Serial.readStringUntil('\n'); // read string until newline character meet 
+    if(command == "TEMP")
+    {
+      Serial.println(teplotaC); // send action to Serial Monitor
+    }
+  }
+}
+
+void PWMWrite(byte pin, int Output){
+  if (millis() - windowStartTime >= WindowSize)
+  { //time to shift the Relay Window
+    windowStartTime += WindowSize;
+    Setpoint = 98;
+    myQuickPID.Compute();
+  }
+  if (((unsigned int)Output > minWindow) && ((unsigned int)Output < (millis() - windowStartTime))) digitalWrite(pin, HIGH);
+  else digitalWrite(pin, LOW); 
+}
+void PWM(int Output){
+  if (Output <= 0.0) {
+    Output = 0.0;
+  }  
+  if (Output >= 1000.0) {
+    Output = 1000.0;
+  }
+}
 
 void setup(void) {
   // komunikace přes sériovou linku rychlostí 9600 baud
@@ -84,7 +164,6 @@ void setup(void) {
   //_myPID.AutoTune(tuningMethod::NO_OVERSHOOT_PID);
 //initialize the variables we're linked to
   windowStartTime = millis();
-  Setpoint = 30;
   //tell the PID to range between 0 and the full window size
   myQuickPID.SetOutputLimits(0, WindowSize);
 
@@ -95,11 +174,17 @@ void setup(void) {
 void loop(void) {
   // načtení aktuální teploty termočlánku
   // do proměnné teplotaC
-  float teplotaC = termoclanek.readCelsius()-tempCorrection;
   //  TFTscreen.drawRect(0, 60, 160, 50,0xFFFF);
-  String sensorVal = String(teplotaC);
-  // convert the reading to a char array
+  readCLI();
+  timeOld = timeNew;
+  timeNew = millis(); // Don't poll the temperature sensor too quickly
+  // Run low-frequency updates
+  Input = TCouple();
+
+  sensorVal = String(teplotaC);
   sensorVal.toCharArray(sensorPrintout, 6);
+  // convert the reading to a char array
+  
   if ((teplotaC < tMax) && (teplotaC > -1))
   {
   TFTscreen.fillRect(60, 35, 35, 8, 0x0000);
@@ -113,32 +198,7 @@ void loop(void) {
 
  
   // map(val, val_min,val_max,screen_min,screen_max)
-  int graphHeight = map(teplotaC, 0, 100, TFTscreen.height(), 0);
-//  Serial.print("graphHeight:");    Serial.print(graphHeight);    Serial.println(",");
-  TFTscreen.stroke(255, 255, 255);
   
-  TFTscreen.line(xPosOld, graphHeightOld, xPos,graphHeight);
-  xPosOld = xPos;
-  graphHeightOld = graphHeight;
-  if (xPos >= 128) {
-
-    xPos = 0;
-    xPosOld =0;
-
-    TFTscreen.background(0, 0, 0);
-    TFTscreen.setTextColor(0xFFFF);
-    // nastavení kurzoru na pozici [x, y] = [40, 25]
-    TFTscreen.setCursor(40, 25);
-    TFTscreen.setTextSize(1);
-    // tištění textu
-    TFTscreen.print("Mereni teploty");
-  }
-
-  else {
-
-    xPos++;
-    
-  }
 
 
   
@@ -148,29 +208,18 @@ void loop(void) {
   /************************************************
      turn the output pin on/off based on pid output
    ************************************************/
-  Input = teplotaC;
-  if (millis() - windowStartTime >= WindowSize)
-  { //time to shift the Relay Window
-    windowStartTime += WindowSize;
-    myQuickPID.Compute();
-  }
-  if (((unsigned int)Output > minWindow) && ((unsigned int)Output < (millis() - windowStartTime))) digitalWrite(SSR_PIN, HIGH);
-  else digitalWrite(SSR_PIN, LOW);
-  
+  PWMWrite(SSR_PIN,Output);
 //  Serial.print("Input:");    Serial.print(Input);    Serial.println(",");
 //  Serial.print("Output:");    Serial.print(Output);    Serial.println(",");
   Serial.print(Input);
   Serial.print("\t"); // a space ' ' or  tab '\t' character is printed between the two values.
-  Serial.println(Output);
-  
-  delay(DelayVal);
+  Serial.println(Output/10);
+//  delay(175);
+
+
+
+
   }
-
-
-
-
-
-
   // SECURITY LOOP - If temp is too high or error reading, then 
   else if (teplotaC >= tMax){
   TFTscreen.begin();
@@ -185,7 +234,9 @@ void loop(void) {
   digitalWrite(SSR_PIN, LOW);
   delay(DelayVal);
   TFTscreen.fillRect(0, 0, 160, 128, 0x0000);
-  
+  Serial.print(Input);
+  Serial.print("\t"); // a space ' ' or  tab '\t' character is printed between the two values.
+  Serial.println(Output/10);
   }else
   {
   TFTscreen.begin();
@@ -199,5 +250,8 @@ void loop(void) {
   digitalWrite(SSR_PIN, LOW);
   delay(DelayVal);
   TFTscreen.fillRect(0, 0, 160, 128, 0x0000);
+  Serial.print(Input);
+  Serial.print("\t"); // a space ' ' or  tab '\t' character is printed between the two values.
+  Serial.println(Output/10);
   }
   } // END of LOOP

@@ -48,6 +48,16 @@ PID values:
 * Ki = 50
 * Kd = 30
 Values for PID taken from: https://www.reddit.com/r/Coffee/comments/20jre7/how_to_pid_a_gaggia_classic_the_right_way/
+## AutoTune
+* best values from autotune
+    * SOME_OVERSHOOT_PID
+        * Tu: 204.27  td: 5.89  Ku: 20.86  Kp: 6.95  Ki: 0.07  Kd: 472.91
+        * Tu: 30.01  td: 1.08  Ku: 30.17  Kp: 10.05  Ki: 0.67  Kd: 100.49
+
+    * PESSEN_INTEGRAL_PID
+            Kp 16.37 Ki 0.95 Kd 107
+            Tu: 30.94  td: 0.47  Ku: 28.47  Kp: 19.93  Ki: 1.61  Kd: 92.49
+
 
 Sources:
 Figures taken from navody.dratek.cz
