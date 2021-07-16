@@ -188,8 +188,8 @@ void setup(void) {
   //_myPID.AutoTune(tuningMethod::CIANCONE_MARLIN_PID);
   //_myPID.AutoTune(tuningMethod::AMIGOF_PID);
   // _myPID.AutoTune(tuningMethod::PESSEN_INTEGRAL_PID);
-  _myPID.AutoTune(tuningMethod::SOME_OVERSHOOT_PID);
-  //_myPID.AutoTune(tuningMethod::NO_OVERSHOOT_PID);
+  // _myPID.AutoTune(tuningMethod::SOME_OVERSHOOT_PID);
+  _myPID.AutoTune(tuningMethod::NO_OVERSHOOT_PID);
   //initialize the variables we're linked to
   windowStartTime = millis();
   //tell the PID to range between 0 and the full window size
