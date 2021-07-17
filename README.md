@@ -8,7 +8,7 @@ PID regulator using arduino nano for Gaggia classic (2005)
 * **ACTIVE** case build & integration to the gaggia
 ### Implemented
 * The goal is to reach approximately 95 C. Some sources say, that the temperature drop between boiler and grouphead is approximately 10 degrees.
-* The code is setup to aim at 100 C with PID cutoff at 101.0 C. Hard cutoff is set for 112 C to prevent excessive overheating if PID gets mad.
+* The code is setup to aim at 102 C with PID cutoff at 102.75 C. Hard cutoff is set for 112 C to prevent excessive overheating if PID gets mad.
     * Implemented if loop to check if temp is not too high, otherwise turn the SSR off
 
 
@@ -75,3 +75,8 @@ Wanted features
 Sources:
 Figures taken from navody.dratek.cz
 Parts of code taken from navody.dratek.cz
+https://playground.arduino.cc/Code/PIDLibraryRelayOutputExample/
+https://github.com/Dlloydev/QuickPID
+https://forum.arduino.cc/t/problems-with-regulate-a-coffee-machine-boiler-pid-ssr-relais/542488/26
+
+

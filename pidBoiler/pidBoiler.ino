@@ -31,16 +31,23 @@ char sensorPrintout[6];
 bool SSRStat = true;
 int xPosOld = 0;
 int graphHeightOld;
-int DelayVal = 500;
 int timeNow;
 int teplotaCAvg;
 float tempCorrection = 0.0;
-int tMax = 112;
+int tMaxHardLimit = 112;
 String sensorVal;
-
+unsigned int WindowSize = 1000;
+unsigned int minWindow = 250;
+unsigned long windowStartTime;
+int timer = 0;
+int timerDisplay = 0;
+int timeOld = 0;
+int timeNew = 0;
+float teplotaC = 0;
 
 //Define Variables we'll be connecting to
 float Setpoint, Input, Output;
+float tMaxStopHeat = Setpoint;
 
 //Specify the links and initial tuning parameters
 float Kp = 53, Ki = 0.5, Kd = 56;
@@ -48,48 +55,36 @@ float POn = 0.5;   // proportional on Error to Measurement ratio (0.0-1.0), defa
 float DOn = 0.0;   // derivative on Error to Measurement ratio (0.0-1.0), default = 0.0
 
 QuickPID myQuickPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, POn, DOn, QuickPID::DIRECT);
-//QuickPID _myPID = QuickPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, POn, DOn, QuickPID::DIRECT);
-
-
-
-
-unsigned int WindowSize = 1500;
-unsigned int minWindow = 250;
-unsigned long windowStartTime;
-int timer = 0;
-int timeOld = 0;
-int timeNew = 0;
-float teplotaC = 0;
-
-
 
 void updateDisplay(){
-  int graphHeight = map(teplotaC, 85, tMax, TFTscreen.height(), 20);
-  int setPointHeight = map(Setpoint, 85, tMax, TFTscreen.height(), 20);
+  // map(val, val_min,val_max,screen_min,screen_max)
+  int graphHeight = map(teplotaC, 85, tMaxHardLimit, TFTscreen.height(), 20);
+  int setPointHeight = map(Setpoint, 85, tMaxHardLimit, TFTscreen.height(), 20);
 //  Serial.print("graphHeight:");    Serial.print(graphHeight);    Serial.println(",");
+  timerDisplay += abs(timeOld - timeNew);
+  if (timerDisplay > 500){
+  TFTscreen.fillRect(1, setPointHeight, 160, 1, 004225);
   TFTscreen.stroke(255, 255, 255);
-  TFTscreen.fillRect(1, setPointHeight, 160, 1, 0xFF00);
   TFTscreen.line(xPosOld, graphHeightOld, xPos,graphHeight);
+  // TFTscreen.stroke(153, 229, 0);
+  // TFTscreen.line(1,setPointHeight,160,setPointHeight);
   xPosOld = xPos;
   graphHeightOld = graphHeight;
-  if (xPos >= 128) {
+  if (xPos >= 160) {
 
     xPos = 0;
     xPosOld =0;
 
     TFTscreen.background(0, 0, 0);
-    TFTscreen.setTextColor(0xFFFF);
-    // nastavení kurzoru na pozici [x, y] = [40, 25]
-    TFTscreen.setCursor(40, 25);
-    TFTscreen.setTextSize(1);
-    // tištění textu
-    TFTscreen.print("Mereni teploty");
+    CurrentTempDisplay();
   }
 
   else {
-
+    
     xPos++;
     
+  }
+  timerDisplay = 0;
   }
 }
 
@@ -115,29 +110,63 @@ void readCLI(){
   }
 }
 
-void PWMWrite(byte pin, int Output){
+void PWMWrite(byte pin){
+  
   if (millis() - windowStartTime >= WindowSize)
   { //time to shift the Relay Window
     windowStartTime += WindowSize;
-    myQuickPID.Compute();
-    Output = WindowSize-Output;
+    // Output = WindowSize-Output;
+    myQuickPID.Compute();  
   }
-  if (((unsigned int)Output > minWindow) && ((unsigned int)Output < (millis() - windowStartTime)) && (Input < 101.0)) digitalWrite(pin, HIGH);
-  else digitalWrite(pin, LOW); 
+  if (
+   ((unsigned int)Output > (millis() - windowStartTime)) &&
+   (Input <= 102.75)
+  ){
+    digitalWrite(pin, HIGH);
+  } 
+  else {
+    digitalWrite(pin, LOW); 
+  }
 }
-void PWM(int Output){
-  if (Output <= 0.0) {
-    Output = 0.0;
-  }  
-  if (Output >= 1000.0) {
-    Output = 1000.0;
-  }
+
+// void PWM(int Output){
+//   if (Output <= 0.0) {
+//     Output = 0.0;
+//   }  
+//   if (Output >= 1000.0) {
+//     Output = 1000.0;
+//   }
+// }
+
+void CurrentTempDisplay(){
+  TFTscreen.setTextColor(0xFFFF);
+  // nastavení kurzoru na pozici [x, y] = [40, 25]
+  TFTscreen.setCursor(0, 0);
+  TFTscreen.setTextSize(1);
+  // tištění textu
+  TFTscreen.print("Soucasna teplota:");
+  TFTscreen.setCursor(0, 10);
+  TFTscreen.setTextSize(1);
+  TFTscreen.setTextColor(004225);
+  TFTscreen.print("Idealni teplota:");
+  TFTscreen.setCursor(160-35, 10);
+  TFTscreen.print(Setpoint);
+  TFTscreen.setTextColor(0xFFFF);
+}
+void tempReading(char * printout){
+  int xStart = 160-35;  //60
+  int yStart = 0;  //35
+  int width = 35;   //35
+  int height = 10;  //10
+  TFTscreen.fillRect(xStart, yStart, width, height, 0x0000);
+  TFTscreen.stroke(255, 255, 255);
+  TFTscreen.text(printout, xStart, yStart);
 }
 
 void setup(void) {
   // komunikace přes sériovou linku rychlostí 9600 baud
   Serial.begin(115200);  
-  Setpoint = 100;
+  Setpoint = 102;
 // Switch to turn on the OUTPUT pin for SSR 
   switch(SSRStat) {
   case true:
@@ -154,11 +183,12 @@ void setup(void) {
   windowStartTime = millis();
   //tell the PID to range between 0 and the full window size
   myQuickPID.SetOutputLimits(0, WindowSize);
-
   //turn the PID on
   myQuickPID.SetMode(QuickPID::AUTOMATIC);
 }
 
+
+/********************* MAIN LOOP ***********************/
 void loop(void) {
   // načtení aktuální teploty termočlánku
   // do proměnné teplotaC
@@ -171,32 +201,19 @@ void loop(void) {
 
   sensorVal = String(teplotaC);
   sensorVal.toCharArray(sensorPrintout, 6);
+  tempReading(sensorPrintout);
   // convert the reading to a char array
   
-  if ((teplotaC < tMax) && (teplotaC > -1))
+  if ((teplotaC < tMaxHardLimit) && (teplotaC > -1))
   {
-  TFTscreen.fillRect(60, 35, 35, 8, 0x0000);
-  TFTscreen.stroke(255, 255, 255);
-  TFTscreen.text(sensorPrintout, 60, 35);
-  // nastavení kurzoru na pozici [x, y] = [40, 25]
-  TFTscreen.setCursor(40, 25);
-  TFTscreen.setTextSize(1);
-  // tištění textu
-  TFTscreen.print("Mereni teploty");
 
- 
-  // map(val, val_min,val_max,screen_min,screen_max)
-  
-
-
-  
-////// PID/////
-
+  CurrentTempDisplay();
   
   /************************************************
+   *********************** PID ********************
      turn the output pin on/off based on pid output
    ************************************************/
-  PWMWrite(SSR_PIN,Output);
+  PWMWrite(SSR_PIN);
   Serial.print("Setpoint:");  Serial.print(Setpoint);  Serial.print(",");
   Serial.print("MaxTemp:");  Serial.print((int) 105);  Serial.print(",");
   Serial.print("Input:");     Serial.print(Input);     Serial.print(",");
@@ -209,9 +226,11 @@ void loop(void) {
   delay(200);
 
   }
-  // SECURITY LOOP - If temp is too high or error reading, then 
-  else if (teplotaC >= tMax){
-  TFTscreen.begin();
+  /************************************************
+   ************* SECURITY LOOP ********************
+     If temp is too high or error reading, then 
+   ************************************************/
+  else if (teplotaC >= tMaxHardLimit){
   TFTscreen.background(0, 0, 0);
   TFTscreen.fillRect(60, 35, 35, 8, 0x0000);
   TFTscreen.setTextColor(0xFFFF);
@@ -220,18 +239,18 @@ void loop(void) {
   TFTscreen.setTextSize(2);
   // tištění textu
   TFTscreen.print("VYSOKA");
-  TFTscreen.setCursor(60, 40);
+  TFTscreen.setCursor(60, 45);
   TFTscreen.setTextSize(2);
   TFTscreen.print("TEPLOTA");
+  TFTscreen.setTextSize(1);
   digitalWrite(SSR_PIN, LOW);
-  delay(DelayVal);
+  delay(250);
   TFTscreen.fillRect(0, 0, 160, 128, 0x0000);
   Serial.print(Input);
   Serial.print("\t"); // a space ' ' or  tab '\t' character is printed between the two values.
   Serial.println(Output/10);
   }else
   {
-  TFTscreen.begin();
   TFTscreen.background(0, 0, 0);
   TFTscreen.setTextColor(0xFFFF);
   // nastavení kurzoru na pozici [x, y] = [40, 25]
@@ -239,8 +258,9 @@ void loop(void) {
   TFTscreen.setTextSize(2);
   // tištění textu
   TFTscreen.print("CHYBA\nCIDLA");
+  TFTscreen.setTextSize(1);
   digitalWrite(SSR_PIN, LOW);
-  delay(DelayVal);
+  delay(250);
   TFTscreen.fillRect(0, 0, 160, 128, 0x0000);
   Serial.print(Input);
   Serial.print("\t"); // a space ' ' or  tab '\t' character is printed between the two values.
