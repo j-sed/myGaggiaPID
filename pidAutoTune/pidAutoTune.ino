@@ -33,7 +33,7 @@ int graphHeightOld;
 int DelayVal = 500;
 int timeNow;
 int teplotaCAvg;
-float tempCorrection = 1.0;
+float tempCorrection = 1.5;
 int tMax = 125;
 String sensorVal;
 unsigned int WindowSize = 1000;
@@ -41,7 +41,7 @@ unsigned int minWindow = 250;
 unsigned long windowStartTime;
 
 
-const uint32_t sampleTimeUs = 500000; // 0.5s
+const uint32_t sampleTimeUs = 50000; // 0.5s
 //const byte inputPin = 0;
 // const byte outputPin = 7;
 const int outputMax = WindowSize;
@@ -50,7 +50,7 @@ bool printOrPlotter = 1;  // on(1) monitor, off(0) plotter
 
 byte outputStep = 100;
 byte hysteresis = 1;
-float setpoint = 96;       // 1/3 of range for symetrical waveform
+float setpoint = 68;       // 1/3 of range for symetrical waveform
 int output = WindowSize/3;          // 1/3 of range for symetrical waveform
 
 //Define Variables we'll be connecting to
@@ -58,7 +58,7 @@ float Setpoint, Input, Output;
 
 //Specify the links and initial tuning parameters
 float Kp = 0, Ki = 0, Kd = 0;
-float POn = 0.5;   // proportional on Error to Measurement ratio (0.0-1.0), default = 1.0
+float POn = 1.0;   // proportional on Error to Measurement ratio (0.0-1.0), default = 1.0
 float DOn = 0.0;   // derivative on Error to Measurement ratio (0.0-1.0), default = 0.0
 
 
@@ -85,6 +85,8 @@ void updateDisplay() {
   TFTscreen.line(xPosOld, graphHeightOld, xPos, graphHeight);
   xPosOld = xPos;
   graphHeightOld = graphHeight;
+  sensorVal = String(teplotaC);
+  sensorVal.toCharArray(sensorPrintout, 6);
   if (xPos >= 128) {
 
     xPos = 0;
@@ -129,7 +131,7 @@ float TCouple(){
   return teplotaC;
 }
 
-void PWMWrite(byte pin, int Output){
+void PWMWrite(byte pin){
   // Serial.println("PWM function");
   // Serial.println(Output);
   // Serial.println(millis() - windowStartTime);
@@ -140,13 +142,13 @@ void PWMWrite(byte pin, int Output){
   if (((unsigned int)Output > minWindow) && ((unsigned int)Output < (millis() - windowStartTime))) digitalWrite(pin, HIGH);
   else digitalWrite(pin, LOW); 
 }
-void PWMWriteAndCompute(byte pin, int Output){
+void PWMWriteAndCompute(byte pin){
   if (millis() - windowStartTime >= WindowSize)
   { //time to shift the Relay Window
     windowStartTime += WindowSize;
     _myPID.Compute();
   }
-  if (((unsigned int)Output > minWindow) && ((unsigned int)Output < (millis() - windowStartTime))) digitalWrite(pin, HIGH);
+  if ( ((unsigned int)Output > (millis() - windowStartTime))) digitalWrite(pin, HIGH);
   else digitalWrite(pin, LOW); 
 }
 
@@ -183,13 +185,13 @@ void setup(void) {
   //_myPID.AutoTune(tuningMethod::ZIEGLER_NICHOLS_PI);
   //_myPID.AutoTune(tuningMethod::ZIEGLER_NICHOLS_PID);
   //_myPID.AutoTune(tuningMethod::TYREUS_LUYBEN_PI);
-  //_myPID.AutoTune(tuningMethod::TYREUS_LUYBEN_PID);
+  _myPID.AutoTune(tuningMethod::TYREUS_LUYBEN_PID);
   //_myPID.AutoTune(tuningMethod::CIANCONE_MARLIN_PI);
-  //_myPID.AutoTune(tuningMethod::CIANCONE_MARLIN_PID);
+  // _myPID.AutoTune(tuningMethod::CIANCONE_MARLIN_PID);
   //_myPID.AutoTune(tuningMethod::AMIGOF_PID);
   // _myPID.AutoTune(tuningMethod::PESSEN_INTEGRAL_PID);
   // _myPID.AutoTune(tuningMethod::SOME_OVERSHOOT_PID);
-  _myPID.AutoTune(tuningMethod::NO_OVERSHOOT_PID);
+  // _myPID.AutoTune(tuningMethod::NO_OVERSHOOT_PID);
   //initialize the variables we're linked to
   windowStartTime = millis();
   //tell the PID to range between 0 and the full window size
@@ -227,7 +229,7 @@ void loop(void) {
         Input = TCouple();
         // Serial.println(Input);
         // analogWrite(outputPin, Output);
-        PWMWrite(SSR_PIN,Output);
+        PWMWrite(SSR_PIN);
         readCLI();
         break;
 
@@ -236,7 +238,7 @@ void loop(void) {
         _myPID.SetMode(QuickPID::AUTOMATIC); // setup PID
         _myPID.SetSampleTimeUs(sampleTimeUs);
         _myPID.SetTunings(Kp, Ki, Kd, POn, DOn); // apply new tunings to PID
-        Setpoint = 100;
+        Setpoint = 102;
         Serial.println("tunings loop");
         readCLI();
         break;
@@ -259,7 +261,7 @@ void loop(void) {
     }
     //    Input = _myPID.analogReadFast(inputPin);
     Input = TCouple();
-    PWMWriteAndCompute(SSR_PIN,Output);
+    PWMWriteAndCompute(SSR_PIN);
     readCLI();
   }
 } // END of LOOP

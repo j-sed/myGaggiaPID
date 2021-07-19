@@ -50,8 +50,8 @@ float Setpoint, Input, Output;
 float tMaxStopHeat = Setpoint;
 
 //Specify the links and initial tuning parameters
-float Kp = 53, Ki = 0.5, Kd = 56;
-float POn = 0.5;   // proportional on Error to Measurement ratio (0.0-1.0), default = 1.0
+float Kp = 35, Ki = 5.0, Kd = 20;
+float POn = 1.0;   // proportional on Error to Measurement ratio (0.0-1.0), default = 1.0
 float DOn = 0.0;   // derivative on Error to Measurement ratio (0.0-1.0), default = 0.0
 
 QuickPID myQuickPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, POn, DOn, QuickPID::DIRECT);
@@ -119,8 +119,9 @@ void PWMWrite(byte pin){
     myQuickPID.Compute();  
   }
   if (
-   ((unsigned int)Output > (millis() - windowStartTime)) &&
-   (Input <= 102.75)
+   (Input < (float) 103.00) &&
+   ((unsigned int)Output > (millis() - windowStartTime))
+   
   ){
     digitalWrite(pin, HIGH);
   } 
@@ -172,7 +173,7 @@ void setup(void) {
   case true:
     pinMode(SSR_PIN, OUTPUT);
     break;
-}
+  }
   TFTscreen.begin();
 // fillRect(xStart,yStart,width,height,color)
     // Screen setting
@@ -181,6 +182,8 @@ void setup(void) {
 
 //initialize the variables we're linked to
   windowStartTime = millis();
+  // change the sampling time for PID to 5s
+  myQuickPID.SetSampleTimeUs(5000);
   //tell the PID to range between 0 and the full window size
   myQuickPID.SetOutputLimits(0, WindowSize);
   //turn the PID on
