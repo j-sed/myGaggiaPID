@@ -41,7 +41,7 @@ unsigned int minWindow = 250;
 unsigned long windowStartTime;
 
 
-const uint32_t sampleTimeUs = 50000; // 0.5s
+const uint32_t sampleTimeUs = 100000; // 0.5s
 //const byte inputPin = 0;
 // const byte outputPin = 7;
 const int outputMax = WindowSize;
@@ -50,7 +50,7 @@ bool printOrPlotter = 1;  // on(1) monitor, off(0) plotter
 
 byte outputStep = 100;
 byte hysteresis = 1;
-float setpoint = 68;       // 1/3 of range for symetrical waveform
+float setpoint = 80;       // 1/3 of range for symetrical waveform
 int output = WindowSize/3;          // 1/3 of range for symetrical waveform
 
 //Define Variables we'll be connecting to
@@ -139,7 +139,8 @@ void PWMWrite(byte pin){
   { //time to shift the Relay Window
     windowStartTime += WindowSize;
   }
-  if (((unsigned int)Output > minWindow) && ((unsigned int)Output < (millis() - windowStartTime))) digitalWrite(pin, HIGH);
+  if (((unsigned int)Output > minWindow) &&
+   ((unsigned int)Output < (millis() - windowStartTime))) digitalWrite(pin, HIGH);
   else digitalWrite(pin, LOW); 
 }
 void PWMWriteAndCompute(byte pin){
@@ -148,7 +149,8 @@ void PWMWriteAndCompute(byte pin){
     windowStartTime += WindowSize;
     _myPID.Compute();
   }
-  if ( ((unsigned int)Output > (millis() - windowStartTime))) digitalWrite(pin, HIGH);
+  if (((unsigned int)Output > minWindow) &&
+   ((unsigned int)Output < (millis() - windowStartTime))) digitalWrite(pin, HIGH);
   else digitalWrite(pin, LOW); 
 }
 
@@ -156,7 +158,7 @@ void readCLI(){
   if(Serial.available()) // if there is data comming
   {
     String command = Serial.readStringUntil('\n'); // read string until newline character meet 
-    if(command == "TEMP")
+    if(command == "temp")
     {
       Serial.println(teplotaC); // send action to Serial Monitor
     }
@@ -185,9 +187,9 @@ void setup(void) {
   //_myPID.AutoTune(tuningMethod::ZIEGLER_NICHOLS_PI);
   //_myPID.AutoTune(tuningMethod::ZIEGLER_NICHOLS_PID);
   //_myPID.AutoTune(tuningMethod::TYREUS_LUYBEN_PI);
-  _myPID.AutoTune(tuningMethod::TYREUS_LUYBEN_PID);
+  // _myPID.AutoTune(tuningMethod::TYREUS_LUYBEN_PID);
   //_myPID.AutoTune(tuningMethod::CIANCONE_MARLIN_PI);
-  // _myPID.AutoTune(tuningMethod::CIANCONE_MARLIN_PID);
+  _myPID.AutoTune(tuningMethod::CIANCONE_MARLIN_PID);
   //_myPID.AutoTune(tuningMethod::AMIGOF_PID);
   // _myPID.AutoTune(tuningMethod::PESSEN_INTEGRAL_PID);
   // _myPID.AutoTune(tuningMethod::SOME_OVERSHOOT_PID);

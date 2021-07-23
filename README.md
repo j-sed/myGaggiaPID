@@ -1,5 +1,9 @@
 # myGaggiaPID
 PID regulator using arduino nano for Gaggia classic (2005)
+
+* **pidBoiler**  contains latest version of the main code. This one is meant for standard use.
+* **pidAutoTune** contains only tuning code for Autotune.
+* **pidDisplay** testbed for displaying information on display. No longer used.
 ## Notes 
 * The goal is to reach approximately 95 C at the portafilter. Some sources say, that the temperature drop between boiler and grouphead is approximately 10 degrees.
 * The code is setup to aim at 102 C with PID cutoff at 102.75 C. Hard cutoff is set for 112 C to prevent excessive overheating if PID gets mad.
@@ -60,15 +64,15 @@ steps which were done to load arduino nano clone
 * ls -l /dev/ttyUSB*
 * sudo usermod -a -G dialout jsed
 ### Accessories
-
 **Display**| **Thermocouple**
 |:--:|:--:|
 |the display using lcd 128x160 with pinout|the MAX6675 was connected as shown bellow|
 |<img src="https://navody.dratek.cz/images/obr_clanky/74_lcd_160x128/74_lcd_160x128_schema.png" alt="" width="500"> | <img src="https://navody.dratek.cz/images/obr_clanky/18_termoclanek_driver/18_termoclanek_driver_schema.png" alt="" width="500">|
 |[Link](https://navody.dratek.cz/images/obr_clanky/74_lcd_160x128/74_lcd_160x128_schema.png) |[Link](https://navody.dratek.cz/images/obr_clanky/18_termoclanek_driver/18_termoclanek_driver_schema.png)|
 
-#### Solid-state relay
+**Solid-state relay**
 The relay was connected with pin D7:(+) and GND:(-). 
+
 ### Code
 #### Idea
 The display will show actual temperature reading and below it will be the graph of the temperature, so that the user knows, when it is best to start brewing coffee.
